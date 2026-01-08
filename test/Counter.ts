@@ -303,15 +303,78 @@ const privatekey =
 describe("Deploy simple vault and test its fucntionalities and make sure it works flawlessly low gas and efficiently", async function () {
   const { viem } = await network.connect("hardhatMainnet");
   const publicClient = await viem.getPublicClient();
+  const [walletClient] = await viem.getWalletClients();
+
   //deploy vault token
-  const vaultToken = await viem.deployContract("VaultTOken", [
-    "Vault Token",
-    "VToken",
-  ]);
-  //deploy ault passing in vault token address
-  const vault = await viem.deployContract("SimplleVault", [vaultToken.address]);
 
   //test starts   do everthing step by step do first fails to make sure system works and blocks malicious entities
   //tm we finnish this
   //make sure   contracts are gas efficient and low in gas this is big priority we must master thhis gas is trickky in solidity
+
+  try {
+    const vaultToken = await viem.deployContract("VaultToken", [
+      "Vault Token",
+      "VToken",
+    ]);
+    //deploy ault passing in vault token address
+    const vault = await viem.deployContract("SimpleVault", [
+      vaultToken.address,
+    ]);
+    const tokenEvents = publicClient.watchContractEvent({
+      address: vaultToken.address,
+      abi: vaultToken.abi,
+      onLogs: (logs) => console.log(logs),
+    });
+
+    const vaultEvents = publicClient.watchContractEvent({
+      address: vaultToken.address,
+      abi: vaultToken.abi,
+      onLogs: (logs) => console.log(logs),
+    });
+
+    // //the error   from modifier shhows properly revert works
+    // await vault.simulate._deposit([[300000n]]);
+
+    // //test the deposit
+    // const depositHash = await vault.write._deposit([[300000n]]);
+
+    // const receipt = await publicClient.waitForTransactionReceipt({
+    //   hash: depositHash,
+    // });
+
+    //simualte and test a deposit properly WORKS PROPERLY
+    await vaultToken.simulate.approve([vault.address, 500000n]);
+
+    //test the deposit approve spending
+    const approveHash = await vaultToken.write.approve([
+      vault.address,
+      500000n,
+    ]);
+
+    const approveReciept = await publicClient.waitForTransactionReceipt({
+      hash: approveHash,
+    });
+
+    //deposit
+    await vault.simulate._deposit([300000n]);
+
+    //test the deposit
+    const depositHash = await vault.write._deposit([300000n]);
+
+    const depositReciept = await publicClient.waitForTransactionReceipt({
+      hash: depositHash,
+    });
+
+    const vaultBalance = await publicClient.readContract({
+      address: vault.address,
+      abi: vault.abi,
+      functionName: "_getVaultBalance",
+      args: [walletClient.account.address],
+    });
+
+    console.log("Your vault Balance: ", vaultBalance);
+    ///////////////////////////////////////////////////
+  } catch (error) {
+    console.log(error);
+  }
 });
